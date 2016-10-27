@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <title>Softfire Software Portal</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Mobile support -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Material Design fonts -->
+    <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Roboto:300,400,500,700" type="text/css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <!-- Bootstrap -->
+    <link href="dist/css/bootstrap.css" rel="stylesheet">
+
+    <!-- Bootstrap Material Design -->
+    <link href="css/bootstrap-material-design.css" rel="stylesheet">
+    <link href="css/ripples.min.css" rel="stylesheet">
+    <link href="dist/css/dropzone.css" rel="stylesheet">
+
+
+    <link rel="shortcut icon" href="img/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="img/favicon.ico" type="image/x-icon">
+
+    <!-- Page style -->
+    <link href="index.css" rel="stylesheet">
+
+    <!-- jQuery -->
+    <script src="//code.jquery.com/jquery-1.10.2.min.js"></script>
+
+</head>
+<body ng-app="marketplace" ng-controller="Controller">
+<nav class="navbar navbar-default">
+    <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <a class="navbar-brand" href="">
+            <i class="material-icons">shopping_cart</i>
+        </a>
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse"
+                    data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+
+            <a class="navbar-brand"  href=""> SoftFIRE Software Portal</a>
+        </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1" ng-init="$scope.packages = true; $scope.title = 'VNFPackages'">
+            <ul class="nav navbar-nav">
+                <li ng-if="logged"><a href="#/" ng-click="loadTable() ; $scope.packages = true ; $scope.title = 'VNFPackages'">Explore <span class="sr-only">(current)</span></a></li>
+                <li ng-if="logged"><a href="#/" ng-click="loadTableImages() ; $scope.packages = false ; $scope.title = 'Images'">Images </a></li>
+                <li><a href="http://softfire.eu">Help </a></li>
+             <!--   <li class="dropdown">
+                    <a href="#/" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true"
+                       aria-expanded="false">Dropdown <span class="caret"></span></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="#/" ng-click="test('popo')">Action</a></li>
+                        <li><a href="#/">Another action</a></li>
+                        <li><a href="#/">Something else here</a></li>
+                        <li role="separator" class="divider"></li>
+                        <li><a href="#/">Separated link</a></li>
+                        <li role="separator" class="divider"></li>
+                        <li><a href="#/">One more separated link</a></li>
+                    </ul>
+                </li> -->
+            </ul>
+            <form class="navbar-form navbar-left" role="search">
+                <div class="form-group">
+                    <input type="text" class="form-control" placeholder="Filter" ng-model="search.$">
+                </div>
+
+            </form>
+            <ul class="nav navbar-nav navbar-right">
+                <li ng-if="!logged"><a href="#/" data-toggle="modal" data-target="#loginModal">Login in</a></li>
+
+
+                <li class="dropdown" ng-if="logged">
+                    <a href="#/" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true"
+                       aria-expanded="false">{{username}} <span class="caret"></span></a>
+                    <ul class="dropdown-menu">
+                        <!--<li role="separator" class="divider"></li>-->
+                        <li><a href="#/" ng-click="logout()">Log Out</a></li>
+                    </ul>
+                </li>
+
+            </ul>
+
+        </div><!-- /.navbar-collapse -->
+    </div><!-- /.container-fluid -->
+</nav>
+
+<div class="container-fluid">
+    <div ng-view></div>
+</div>
+<!-- Twitter Bootstrap -->
+<script src="dist/js/bootstrap.min.js"></script>
+
+<!-- Material Design for Bootstrap -->
+<script src="js/material/material.js"></script>
+<script src="js/material/ripples.min.js"></script>
+
+<!-- AngularJs libs -->
+<script src="js/libs/angular/angular.min.js"></script>
+<script src="js/libs/angular/angular-route.min.js"></script>
+<script src="js/libs/angular/angular-resource.min.js"></script>
+<script src="js/libs/angular/angular-cookies.min.js"></script>
+<script src="js/libs/angular/angular-sanitize.min.js"></script>
+<script src="js/libs/angular/ui-bootstrap-tpls-0.10.0.min.js"></script>
+<script src="js/libs/dropzone.js"></script>
+<!--<script src="js/bootstrap.js"></script>-->
+<script src="js/app.js"></script>
+<script src="js/services/httpService.js"></script>
+<script src="js/services/authService.js"></script>
+<script src="js/controllers/mainController.js"></script>
+
+<!--<script data-main="js/main" src="js/libs/require/require.js"></script>-->
+
+<script>
+    $.material.init();
+</script>
+
+</body>
+</html>
+
+
+
+<div class="modal fade" id="loginModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <h4 class="modal-title">Log in</h4>
+
+            </div>
+            <div class="modal-body">
+                <div class="">
+                    <form class="form-horizontal" _lpchecked="1" ng-submit="login(credential)">
+                        <fieldset>
+
+                            <div class="form-group" ng-class="loginError ? 'has-error' : ''">
+                                <label for="inputUser" class="col-md-2 control-label">Username</label>
+
+                                <div class="col-md-10">
+                                    <input type="text" ng-model="credential.username" class="form-control"
+                                           id="inputUser" placeholder="Username" style="cursor: auto;" autofocus>
+                                    <p ng-if="loginError" class="has-error">Please enter a valid Username/password</p>
+                                </div>
+                            </div>
+                            <div class="form-group" ng-class="loginError ? 'has-error' : ''">
+                                <label for="inputPassword" class="col-md-2 control-label">Password</label>
+
+                                <div class="col-md-10">
+                                    <input type="password" ng-model="credential.password" class="form-control"
+                                           id="inputPassword" placeholder="Password" style="cursor: auto;">
+                                    <p ng-if="loginError" class="has-error">Please enter a valid Username/password</p>
+
+                                </div>
+                            </div>
+
+
+                        </fieldset>
+                    </form>
+                    <br>
+                    <br>
+                    <br>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default btn-raised"
+                        data-dismiss="modal">Cancel
+                </button>
+                <button type="submit" ng-click="login(credential)" class="btn btn-primary btn-raised">Login</button>
+            </div>
+        </div>
+    </div>
+</div>
+

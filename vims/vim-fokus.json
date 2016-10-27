@@ -1,0 +1,17 @@
+{
+  "name":"vim-instance-fokus",
+  "authUrl":"http://os-prod-ctrl.fokus.fraunhofer.de:5000/v2.0",
+  "tenant":"softfire",
+  "username":"softfire-openbaton",
+  "password":"awbijAk3Slat",
+  "keyPair":"softfire-key",
+  "securityGroups": [
+    "softfire-public", "default"
+  ],
+  "type":"openstack",
+  "location":{
+    "name":"Berlin",
+    "latitude":"52.525876",
+    "longitude":"13.314400"
+  }
+}

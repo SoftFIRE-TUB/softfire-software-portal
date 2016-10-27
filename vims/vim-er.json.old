@@ -1,0 +1,17 @@
+{
+ "name":"vim-instance-er",
+ "authUrl":"http://10.44.56.250:5000/v2.0",
+ "tenant":"ericsson",
+ "username":"ericsson",
+ "password":"ericsson01",
+ "keyPair":"softfire-key",
+ "securityGroups": [
+   "default"
+ ],
+ "type":"openstack",
+ "location":{
+   "name":"Rome",
+   "latitude":"52.525876",
+   "longitude":"13.314400"
+ }
+}

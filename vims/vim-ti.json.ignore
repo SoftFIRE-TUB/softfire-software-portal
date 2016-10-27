@@ -1,0 +1,17 @@
+{
+  "name":"vim-instance-ti",
+  "authUrl":"http://openstack-controller:5000/v2.0",
+  "tenant":"softfire",
+  "username":"softfire",
+  "password":"softfire",
+  "keyPair":"softfire-key",
+  "securityGroups": [
+    "softfire-public", "default"
+  ],
+  "type":"openstack",
+  "location":{
+    "name":"AZ_PA",
+    "latitude":"52.525876",
+    "longitude":"13.314400"
+  }
+}

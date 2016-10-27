@@ -1,0 +1,198 @@
+<div class="row">
+    <div class="col-lg-12">
+        
+            <center><h1><b>
+                <div ng-bind="$scope.title"></div>
+            </b></h1></center>
+        
+        <div class="alert alert-dismissible" ng-class="alert.type" ng-repeat="alert in alerts" data-ng-switch="wave" data-ng-animate="'wave'">
+            <button type="button" class="close" data-dismiss="alert">×</button>
+            <div ng-bind-html="alert.msg" onload="setTimeout(function() { alert('close'); }, 2000)"></div>
+        </div>
+
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-12">
+        <div ng-if="logged && $scope.packages" class="pull-right" id="uploadBtn">
+            <button href="" data-toggle="modal" data-target="#modalUploadPackage" class="btn btn-primary btn-fab btn-raised">
+                <i class="material-icons">file_upload</i>
+            </button>
+        </div>
+        <div ng-if="logged && !$scope.packages" class="pull-right" id="uploadBtn">
+            <button href="" data-toggle="modal" data-target="#modalUploadImages" class="btn btn-primary btn-fab btn-raised">
+                <i class="material-icons">file_upload</i>
+            </button>
+            
+        </div>
+    </div>
+
+</div>
+
+<div id="" class="container" >
+
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="well infobox" ng-repeat="obj in objs | filter:search:strict | startFrom:currentPage*pageSize | limitTo:pageSize">
+                <h3 class="header text-primary"><!--<a href="#{{obj.id}}">-->{{obj.name}}<!--</a>--></h3>
+                <p><em>{{obj.provider}}</em></p>
+                <p>{{obj.description}}</p>
+
+                <!--<a href='{{URL}}/{{obj.id}}/download-with-link' class="btn btn-sup btn-material-pink btn-raised">
+                    <i class="material-icons">file_download</i>
+                    <span>DOWNLOAD</span>
+                </a>-->
+                <a ng-click="removePackage(obj.id)" class="btn btn-sup btn-material-pink btn-raised">
+                    <i class="material-icons">delete</i>
+                    <span>Delete</span>
+                </a>
+                <!--<a href="" class="btn btn-sup btn-material-brown">
+                    <i class="material-icons">favorite_border</i>
+                    <span>GITTIP</span>
+                </a>
+                <a href="" class="btn btn-sup btn-material-deeppurple">
+                    <i class="material-icons">info_outline</i>
+                    <span>ISSUES</span>
+                </a>-->
+
+            </div>
+            <div class="well infobox" ng-repeat="obj in images | filter:search:strict | startFrom:currentPage*pageSize | limitTo:pageSize">
+                <h2 class="header text-primary"><!--<a href="#{{obj.id}}">-->{{obj.names[0]}}<!--</a>--></h3>
+                <p>Available names: {{obj.names}}</p>
+                <p><em>Link: {{obj.link}}</em></p>
+
+                <a ng-click="removeImage(obj.id)" class="btn btn-sup btn-material-pink btn-raised">
+                    <i class="material-icons">delete</i>
+                    <span>Delete</span>
+                </a>
+                <!--<a href="" class="btn btn-sup btn-material-brown">
+                    <i class="material-icons">favorite_border</i>
+                    <span>GITTIP</span>
+                </a>
+                <a href="" class="btn btn-sup btn-material-deeppurple">
+                    <i class="material-icons">info_outline</i>
+                    <span>ISSUES</span>
+                </a>-->
+
+            </div>
+            <ul class="pagination">
+                <li ng-class="{disabled:currentPage === 0}" ng-click="setCurrent(currentPage-1)"><a href="" >«</a></li>
+                <li ng-class="{active:currentPage === $index}" ng-repeat="i in getNumber(numberOfPages) track by tracker(currentPage, $index)"><a href="" ng-click="setCurrent($index)">{{$index + 1}}</a></li>
+                <li ng-class="{disabled:currentPage >= objs.length/pageSize - 1}" ng-click="setCurrent(currentPage+1)"><a href="" >»</a></li>
+            </ul> 
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="modalUploadPackage" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <h2 class="modal-title">Upload a VNF Package</h4>
+
+            </div>
+            <div class="modal-body">
+                <form role="form" id="my-dropzone" class="">
+                    <h4>Drag and drop files below</h4>
+
+                    <div class="upload-drop-zone dz-clickable dz-default dz-message" id="drop-zone">
+                        Just drag and drop files here
+                    </div>
+
+                    <div class="table table-striped" class="files" id="previews">
+
+                        <div id="template" class="file-row">
+                            <!-- This is used as the file preview template -->
+                            <div>
+                                <span class="preview"><img data-dz-thumbnail/></span>
+                            </div>
+                            <div>
+                                <p class="name" data-dz-name></p>
+                                <strong class="error text-danger" data-dz-errormessage></strong>
+                            </div>
+                            <div>
+                                <p class="size" data-dz-size></p>
+
+                                <div id="total-progress" class="progress progress-striped active" role="progressbar"
+                                     aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                                    <div class="progress-bar progress-bar-success" style="width:0%;"
+                                         data-dz-uploadprogress></div>
+                                </div>
+                            </div>
+                            <div>
+                                <button data-dz-remove class="btn btn-warning cancel">
+                                    <i class="glyphicon glyphicon-ban-circle"></i>
+                                    <span>Cancel</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" ng-init="init()">
+                <button type="button" class="btn btn-default btn-raised"
+                        data-dismiss="modal">Close
+                </button>
+                <button type="submit" id="submit-all" class="btn btn-primary btn-raised" >Send All</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalUploadImages" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <h2 class="modal-title">Upload an Image</h4>
+
+            </div>
+            <div class="modal-body">
+                <form role="form" id="image-dropzone" class="">
+                    <h4>Drag and drop image below</h4>
+
+                    <div class="upload-drop-zone dz-clickable dz-default dz-message" id="drop-zone">
+                        Just drag and drop files here
+                    </div>
+
+                    <div class="table table-striped" class="files" id="image-previews">
+
+                        <div id="template" class="file-row">
+                            <!-- This is used as the file preview template -->
+                            <div>
+                                <span class="image-previews"><img data-dz-thumbnail/></span>
+                            </div>
+                            <div>
+                                <p class="name" data-dz-name></p>
+                                <strong class="error text-danger" data-dz-errormessage></strong>
+                            </div>
+                            <div>
+                                <p class="size" data-dz-size></p>
+
+                                <div id="total-progress" class="progress progress-striped active" role="progressbar"
+                                     aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                                    <div class="progress-bar progress-bar-success" style="width:0%;"
+                                         data-dz-uploadprogress></div>
+                                </div>
+                            </div>
+                            <div>
+                                <button data-dz-remove class="btn btn-warning cancel">
+                                    <i class="glyphicon glyphicon-ban-circle"></i>
+                                    <span>Cancel</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" ng-init="init()">
+                <button type="button" class="btn btn-default btn-raised"
+                        data-dismiss="modal">Close
+                </button>
+                <button type="submit" id="submit-all-images" class="btn btn-primary btn-raised" >Send All</button>
+            </div>
+        </div>
+    </div>
+</div>
