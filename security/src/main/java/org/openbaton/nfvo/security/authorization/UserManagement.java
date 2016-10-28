@@ -61,13 +61,18 @@ public class UserManagement implements org.openbaton.nfvo.security.interfaces.Us
   }
 
   @Override
-  public void delete(String user) throws NotAuthorizedException {
+  public void delete(String username) throws NotAuthorizedException {
     if (!getCurrentUser().equals("admin")) {
       throw new NotAuthorizedException("you are not authorized to create users");
     }
-    userDetailsManager.deleteUser(user);
-    userRepository.deleteByUsername(user);
-    log.info("Removed user: " + user);
+    userDetailsManager.deleteUser(username);
+
+    for (User user1 : userRepository.findAll())
+      if (user1.getUsername().equals(username)) {
+        userRepository.delete(user1.getId());
+        break;
+      }
+    log.info("Removed user: " + username);
   }
 /*
     @Override
