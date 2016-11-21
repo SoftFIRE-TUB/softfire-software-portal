@@ -179,7 +179,7 @@ public class ImageManager {
         process =
         Runtime.getRuntime()
                .exec("glance " +
-                     "--os-user-name " +
+                     "--os-username " +
                      vimInstance.getUsername() +
                      " --os-password " +
                      vimInstance.getPassword() +
@@ -260,7 +260,7 @@ public class ImageManager {
     String
         command =
         "glance" +
-        " --os-user-name " +
+        " --os-username " +
         username +
         " --os-password " +
         password +
