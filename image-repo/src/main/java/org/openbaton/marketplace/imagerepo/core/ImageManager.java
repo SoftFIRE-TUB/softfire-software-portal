@@ -114,6 +114,9 @@ public class ImageManager {
     imageMetadata.setExtIds(new HashMap<String, String>());
     imageMetadata.setUsername(currentUsername);
     imageMetadataRepository.save(imageMetadata);
+    File tempFile = File.createTempFile("tmp_", "_tmp", new File("/tmp"));
+    Thread.sleep(1000);
+    Files.copy(stream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
     for (VimInstance vimInstance : loadVimInstances()) {
       uploadImageUsingGlance(stream,
                   vimInstance.getAuthUrl(),
@@ -128,9 +131,11 @@ public class ImageManager {
                   "bare",
                   currentUsername + "_" + name,
                   imageMetadata,
+                             tempFile,
                   vimInstance.getName());
     }
-
+    Thread.sleep(1000);
+    tempFile.delete();
     return imageMetadata;
   }
 
@@ -248,9 +253,9 @@ public class ImageManager {
                                              String containerFormat,
                                              String name,
                                              ImageMetadata imageMetadata,
+                                             File tempFile,
                                              String vimInstanceName) throws IOException, InterruptedException {
-    File tempFile = File.createTempFile("tmp_", "_tmp", new File("/tmp"));
-    Files.copy(stream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
 
     String
         command =
@@ -312,7 +317,6 @@ public class ImageManager {
     imageMetadata.getExtIds().put(vimInstanceName, imageId);
     imageMetadataRepository.save(imageMetadata);
     log.debug("Added jclouds Image: " + name + " to VimInstance: " + authUrl);
-    tempFile.delete();
     return new AsyncResult<>(null);
   }
 
