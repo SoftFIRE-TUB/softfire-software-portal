@@ -21,12 +21,14 @@ package org.openbaton.marketplace.system;
 
 import org.openbaton.marketplace.main.Marketplace;
 import org.springframework.boot.SpringApplication;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.stereotype.Component;
 
 /**
  * Created by mpa on 23.05.16.
  */
 @Component
+@EnableAsync
 public class Starter {
     public static void main(String[] args) {
         SpringApplication.run(Marketplace.class, args);

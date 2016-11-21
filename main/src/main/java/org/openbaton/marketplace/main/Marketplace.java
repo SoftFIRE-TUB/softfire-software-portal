@@ -25,6 +25,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.orm.jpa.EntityScan;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 /**
  * Created by mpa on 23.05.16.
@@ -33,6 +34,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @EntityScan({"org.openbaton.catalogue", "org.openbaton.marketplace.catalogue"})
 @ComponentScan({"org.openbaton", "org.openbaton.marketplace.api"})
 @EnableJpaRepositories("org.openbaton.marketplace.repository")
+@EnableAsync
 public class Marketplace {
 
     protected Logger log = LoggerFactory.getLogger(this.getClass());
