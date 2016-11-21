@@ -34,19 +34,25 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.AsyncResult;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.stereotype.Service;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.StringTokenizer;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.Lock;
 import java.util.regex.Pattern;
@@ -57,6 +63,7 @@ import javax.annotation.PostConstruct;
  * Created by lto on 03/08/16.
  */
 @Service
+@EnableAsync
 public class ImageManager {
 
   @Value("${marketplace.server.ip:localhost}") private String marketplaceIp;
@@ -96,7 +103,7 @@ public class ImageManager {
                                                 ImageRepositoryNotEnabled,
                                                 NoSuchAlgorithmException,
                                                 NumberOfImageExceededException,
-                                                IOException {
+                                                IOException, InterruptedException {
     ImageMetadata imageMetadata = new ImageMetadata();
     //    String imageRepoId = persistImage(stream, name, contentType);
     String currentUsername = userManagement.getCurrentUser();
@@ -108,7 +115,7 @@ public class ImageManager {
     imageMetadata.setUsername(currentUsername);
     imageMetadataRepository.save(imageMetadata);
     for (VimInstance vimInstance : loadVimInstances()) {
-      uploadImage(stream,
+      uploadImageUsingGlance(stream,
                   vimInstance.getAuthUrl(),
                   vimInstance.getTenant(),
                   vimInstance.getUsername(),
@@ -145,17 +152,57 @@ public class ImageManager {
     return imageMetadataRepository.findByUsername(userManagement.getCurrentUser());
   }
 
-  public void deleteImage(String id) throws NotAuthorizedException, FileNotFoundException {
+  public void deleteImage(String id) throws NotAuthorizedException, IOException, InterruptedException {
 
     deleteImageOpenstack(imageMetadataRepository.findFirstById(id));
-//    dbManager.remove(id);
+    //    dbManager.remove(id);
     imageMetadataRepository.delete(id);
   }
 
-  private void deleteImageOpenstack(ImageMetadata imageMetadata) throws FileNotFoundException {
+  private void deleteImageOpenstack(ImageMetadata imageMetadata) throws IOException, InterruptedException {
     for (VimInstance vimInstance : loadVimInstances()) {
-      deleteImageSingleOpenstack(vimInstance, imageMetadata.getExtIds().get(vimInstance.getName()));
+      deleteImageSingleOpenstackUsingOpenstack(vimInstance, imageMetadata.getExtIds().get(vimInstance.getName()));
     }
+  }
+
+  @Async
+  public Future<Void> deleteImageSingleOpenstackUsingOpenstack(VimInstance vimInstance, String extId) throws
+                                                                                                      IOException,
+                                                                                                      InterruptedException {
+
+    Process
+        process =
+        Runtime.getRuntime()
+               .exec("glance " +
+                     "--os-user-name " +
+                     vimInstance.getUsername() +
+                     " --os-password " +
+                     vimInstance.getPassword() +
+                     " --os-tenant-name " +
+                     vimInstance.getTenant() +
+                     " --os-auth-url " +
+                     vimInstance.getAuthUrl() +
+                     " image-delete " +
+                     extId);
+    int res = process.waitFor();
+
+    BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
+
+    BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+
+    String s;
+    if (res != 0) {
+      log.warn("Probably the upload of the image went wrong!");
+      while ((s = stdError.readLine()) != null) {
+        log.warn(s);
+      }
+    } else {
+      while ((s = stdInput.readLine()) != null) {
+        log.debug(s);
+      }
+    }
+
+    return new AsyncResult<>(null);
   }
 
   @Async
@@ -185,6 +232,88 @@ public class ImageManager {
 
   public void forceDeleteImage(String id) {
     dbManager.forceRemove(id);
+  }
+
+  @Async
+  public Future<Void> uploadImageUsingGlance(InputStream stream,
+                                             String authUrl,
+                                             String tenant,
+                                             String username,
+                                             String password,
+                                             long size,
+                                             long minDisk,
+                                             long minRam,
+                                             boolean isPublic,
+                                             String diskFormat,
+                                             String containerFormat,
+                                             String name,
+                                             ImageMetadata imageMetadata,
+                                             String vimInstanceName) throws IOException, InterruptedException {
+    File tempFile = File.createTempFile("tmp_", "_tmp", new File("/tmp"));
+    Files.copy(stream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+    String
+        command =
+        "glance" +
+        " --os-user-name " +
+        username +
+        " --os-password " +
+        password +
+        " --os-tenant-name " +
+        tenant +
+        " --os-auth-url " +
+        authUrl +
+        " image-create " +
+        " --name " +
+        name +
+        " --disk-format " +
+        diskFormat +
+        " --file " +
+        tempFile.getAbsolutePath() +
+        " --container-format " +
+        containerFormat;
+
+    log.debug("Running command: " + command);
+
+    Process process = Runtime.getRuntime().exec(command);
+
+    int res = process.waitFor();
+    BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
+
+    BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+
+    String s;
+    String imageId = null;
+    if (res != 0) {
+      log.warn("Probably the upload of the image went wrong!");
+      while ((s = stdError.readLine()) != null) {
+        log.warn(s);
+      }
+    } else {
+      while ((s = stdInput.readLine()) != null) {
+        if (s.contains("id")){
+          StringTokenizer st = new StringTokenizer(s);
+          while (st.hasMoreTokens()){
+            String id = st.nextToken();
+            if (id.length() > 6) {
+              log.debug("Got id: " + id);
+              imageId = id.trim();
+              break;
+            }
+          }
+        }
+        log.debug(s);
+      }
+    }
+
+    if (imageMetadata.getExtIds() == null) {
+      imageMetadata.setExtIds(new HashMap<String, String>());
+    }
+    imageMetadata.getExtIds().put(vimInstanceName, imageId);
+    imageMetadataRepository.save(imageMetadata);
+    log.debug("Added jclouds Image: " + name + " to VimInstance: " + authUrl);
+    tempFile.delete();
+    return new AsyncResult<>(null);
   }
 
   @Async
@@ -236,7 +365,7 @@ public class ImageManager {
       //        log.error(e.getMessage(), e);
       //      }
       ImageDetails imageDetails = imageApi.create(name, jcloudsPayload, new CreateImageOptions[]{createImageOptions});
-      imageMetadata.getExtIds().put(vimInstanceName,imageDetails.getId());
+      imageMetadata.getExtIds().put(vimInstanceName, imageDetails.getId());
       imageMetadataRepository.save(imageMetadata);
       log.debug("Added jclouds Image: " + imageDetails + " to VimInstance: " + authUrl);
     } catch (Exception e) {
@@ -286,4 +415,42 @@ public class ImageManager {
     }
     return zone;
   }
+
+  public static void main(String[] args) throws IOException, InterruptedException {
+//    ImageManager imageManager = new ImageManager();
+//
+//    VimInstance vimInstance = new VimInstance();
+
+//
+//
+//    vimInstance.setTenant(tenant);
+//    vimInstance.setUsername(username);
+//    vimInstance.setAuthUrl(authUrl);
+//    vimInstance.setPassword(password);
+
+//    imageManager.uploadImageUsingGlance(new FileInputStream(
+//                                            "/opt/softfire/images/trusty-server-cloudimg-amd64-disk1.img"),
+//                                        authUrl,
+//                                        tenant,
+//                                        username,
+//                                        password,
+//                                        0,
+//                                        0,
+//                                        0,
+//                                        true,
+//                                        "qcow2",
+//                                        "bare",
+//                                        "test",
+//                                        new ImageMetadata(),
+//                                        "fokus");
+//    try {
+//      log.debug("sleeping");
+//      Thread.sleep(3000);                 //1000 milliseconds is one second.
+//    } catch (InterruptedException ex) {
+//      Thread.currentThread().interrupt();
+//    }
+
+//    imageManager.deleteImageSingleOpenstackUsingOpenstack(vimInstance, "ab2d3bf4-b8ab-4627-a2ca-db3f65572946");
+  }
 }
+

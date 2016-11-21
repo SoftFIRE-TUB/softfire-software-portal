@@ -20,7 +20,7 @@
 /*
  */
 
-rootProject.name = 'marketplace'
+rootProject.name = 'softfire-software-portal'
 
 include 'api'
 include 'core'

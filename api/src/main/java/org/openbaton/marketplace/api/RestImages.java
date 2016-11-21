@@ -25,7 +25,6 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
@@ -48,7 +47,8 @@ public class RestImages {
                                                                                                    IOException,
                                                                                                    NoSuchAlgorithmException,
                                                                                                    ImageRepositoryNotEnabled,
-                                                                                                   NumberOfImageExceededException {
+                                                                                                   NumberOfImageExceededException,
+                                                                                                   InterruptedException {
     return imageManager.createImage(image.getOriginalFilename(),
                                     image.getSize(),
                                     image.getInputStream(),
@@ -74,7 +74,7 @@ public class RestImages {
   public void deleteImage(@PathVariable("id") String id) throws
                                                          NotFoundException,
                                                          org.openbaton.marketplace.exceptions.NotFoundException,
-                                                         NotAuthorizedException, FileNotFoundException {
+                                                         NotAuthorizedException, IOException, InterruptedException {
     log.debug("Incoming request for deleting image with id: " + id);
     imageManager.deleteImage(id);
   }
