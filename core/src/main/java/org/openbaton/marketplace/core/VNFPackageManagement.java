@@ -321,7 +321,10 @@ public class VNFPackageManagement {
     vnfPackageMetadata.setImageMetadata(imageMetadata);
     vnfPackageMetadata.setVnfPackageFileName(fileName);
     vnfPackageMetadata.setVnfPackageFile(pack);
-    vnfPackageMetadata.setDescription((String) metadata.get("description"));
+    String description = (String) metadata.get("description");
+    if (description.length() > 100)
+      description = description.substring(0, 100);
+    vnfPackageMetadata.setDescription(description);
     vnfPackageMetadata.setProvider((String) metadata.get("provider"));
     vnfPackageMetadata.setRequirements((Map) metadata.get("requirements"));
     vnfPackageMetadata.setShared((boolean) metadata.get("shared"));
