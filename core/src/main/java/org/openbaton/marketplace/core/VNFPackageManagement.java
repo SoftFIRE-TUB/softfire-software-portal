@@ -35,6 +35,7 @@ import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
@@ -53,6 +54,7 @@ import org.apache.http.ssl.SSLContexts;
 import org.apache.http.util.EntityUtils;
 import org.apache.tomcat.util.net.URL;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.openbaton.catalogue.mano.descriptor.VirtualDeploymentUnit;
 import org.openbaton.catalogue.mano.descriptor.VirtualNetworkFunctionDescriptor;
 import org.openbaton.catalogue.nfvo.NFVImage;
 import org.openbaton.catalogue.nfvo.Script;
@@ -64,6 +66,7 @@ import org.openbaton.exceptions.VimException;
 import org.openbaton.marketplace.catalogue.ImageMetadata;
 import org.openbaton.marketplace.catalogue.VNFPackageMetadata;
 import org.openbaton.marketplace.exceptions.NotAuthorizedException;
+import org.openbaton.marketplace.exceptions.PackageIntegrityException;
 import org.openbaton.marketplace.imagerepo.core.ImageManager;
 import org.openbaton.marketplace.repository.repository.VNFPackageMetadataRepository;
 import org.openbaton.marketplace.repository.repository.VNFPackageRepository;
@@ -132,7 +135,8 @@ public class VNFPackageManagement {
                                                                                  NotFoundException,
                                                                                  SQLException,
                                                                                  PluginException,
-                                                                                 AlreadyExistingException {
+                                                                                 AlreadyExistingException,
+                                                                                 PackageIntegrityException {
     VNFPackage vnfPackage = new VNFPackage();
     vnfPackage.setScripts(new HashSet<Script>());
     Map<String, Object> metadata = null;
@@ -166,10 +170,10 @@ public class VNFPackageManagement {
           String[] REQUIRED_PACKAGE_KEYS = new String[]{"name", "description", "provider", "image", "shared"};
           for (String requiredKey : REQUIRED_PACKAGE_KEYS) {
             if (!metadata.containsKey(requiredKey)) {
-              throw new NotFoundException("Not found " + requiredKey + " of VNFPackage in Metadata.yaml");
+              throw new PackageIntegrityException("Not found " + requiredKey + " of VNFPackage in Metadata.yaml");
             }
             if (metadata.get(requiredKey) == null) {
-              throw new NullPointerException("Not defined " + requiredKey + " of VNFPackage in Metadata.yaml");
+              throw new PackageIntegrityException("Not defined " + requiredKey + " of VNFPackage in Metadata.yaml");
             }
           }
           vnfPackage.setName((String) metadata.get("name"));
@@ -186,10 +190,10 @@ public class VNFPackageManagement {
             log.debug("image: " + imageDetails);
             for (String requiredKey : REQUIRED_IMAGE_DETAILS) {
               if (!imageDetails.containsKey(requiredKey)) {
-                throw new NotFoundException("Not found key: " + requiredKey + " of image in Metadata.yaml");
+                throw new PackageIntegrityException("Not found key: " + requiredKey + " of image in Metadata.yaml");
               }
               if (imageDetails.get(requiredKey) == null) {
-                throw new NullPointerException("Not defined value of key: " +
+                throw new PackageIntegrityException("Not defined value of key: " +
                                                requiredKey +
                                                " of image in Metadata.yaml");
               }
@@ -224,12 +228,12 @@ public class VNFPackageManagement {
                     new String[]{"name", "diskFormat", "containerFormat", "minCPU", "minDisk", "minRam", "isPublic"};
                 for (String requiredKey : REQUIRED_IMAGE_CONFIG) {
                   if (!imageConfig.containsKey(requiredKey)) {
-                    throw new NotFoundException("Not found key: " + requiredKey + " of image-config in Metadata.yaml");
+                    throw new PackageIntegrityException("Not found key: " + requiredKey + " of image-config in Metadata.yaml");
                   }
                   if (imageConfig.get(requiredKey) == null) {
-                    throw new NullPointerException("Not defined value of key: " +
-                                                   requiredKey +
-                                                   " of image-config in Metadata.yaml");
+                    throw new PackageIntegrityException("Not defined value of key: " +
+                                                        requiredKey +
+                                                        " of image-config in Metadata.yaml");
                   }
                 }
                 image.setName((String) imageConfig.get("name"));
@@ -240,11 +244,11 @@ public class VNFPackageManagement {
                 image.setMinRam((Integer) imageConfig.get("minRam"));
                 image.setIsPublic(Boolean.parseBoolean(Integer.toString((Integer) imageConfig.get("minRam"))));
               } else {
-                throw new NotFoundException("The image-config is not defined. Please define it to upload a new image");
+                throw new PackageIntegrityException("The image-config is not defined. Please define it to upload a new image");
               }
             }
           } else {
-            throw new NotFoundException("The image details are not defined. Please define it to use the right image");
+            throw new PackageIntegrityException("The image details are not defined. Please define it to use the right image");
           }
         } else if (!entry.getName().startsWith("scripts/") && entry.getName().endsWith(".json")) {
           //this must be the vnfd
@@ -253,6 +257,9 @@ public class VNFPackageManagement {
           log.trace("Content of json is: " + json);
           try {
             virtualNetworkFunctionDescriptor = mapper.fromJson(json, VirtualNetworkFunctionDescriptor.class);
+            //remove the images
+            for (VirtualDeploymentUnit vdu : virtualNetworkFunctionDescriptor.getVdu())
+              vdu.setVm_image(new HashSet<String>());
           } catch (Exception e) {
             e.printStackTrace();
           }
@@ -274,7 +281,7 @@ public class VNFPackageManagement {
       }
     }
     if (metadata == null) {
-      throw new NotFoundException("VNFPackageManagement: Not found Metadata.yaml");
+      throw new PackageIntegrityException("Not found Metadata.yaml");
     }
     if (vnfPackage.getScriptsLink() != null) {
       if (vnfPackage.getScripts().size() > 0) {
@@ -286,7 +293,7 @@ public class VNFPackageManagement {
     if (imageDetails.get("upload").equals("check")) {
       if (!imageLink) {
         if (vnfPackage.getImageLink() == null && imageFile == null) {
-          throw new NotFoundException(
+          throw new PackageIntegrityException(
               "VNFPackageManagement: For option upload=check you must define an image. Neither the image link is " +
               "defined nor the image file is available. Please define at least one if you want to upload a new image");
         }
@@ -296,13 +303,13 @@ public class VNFPackageManagement {
     if (imageDetails.get("upload").equals("true")) {
       log.debug("VNFPackageManagement: Uploading a new Image");
       if (vnfPackage.getImageLink() == null && imageFile == null) {
-        throw new NotFoundException(
+        throw new PackageIntegrityException(
             "VNFPackageManagement: Neither the image link is defined nor the image file is available. Please define " +
             "at least one if you want to upload a new image");
       }
     } else {
       if (!imageDetails.containsKey("ids") && !imageDetails.containsKey("names")) {
-        throw new NotFoundException(
+        throw new PackageIntegrityException(
             "VNFPackageManagement: Upload option 'false' or 'check' requires at least a list of ids or names to find " +
             "the right image.");
       }
@@ -463,6 +470,7 @@ public class VNFPackageManagement {
       log.debug("Removing image: " + vnfPackageMetadata.getImageMetadata().getId());
       imageManager.forceDeleteImage(vnfPackageMetadata.getImageMetadata().getId());
     }
+    //this.deleteOnFitEagle(vnfPackageMetadata);
     vnfPackageMetadataRepository.delete(id);
     log.info("Deleted VNFPackage: " + id);
   }
@@ -495,18 +503,20 @@ public class VNFPackageManagement {
   }
 
   //    public VNFPackage update(String id, VNFPackage vnfPackage) throws NotFoundException {
-  //        log.debug("Updating VNFPackage: " + id);
-  //        VNFPackage applicationToUpdate = vnfPackageRepository.findOne(id);
-  //        if (applicationToUpdate == null) {
-  //            throw new NotFoundException("Not found VNFPackage with ID: " + id);
-  //        }
-  //        vnfPackage.setId(applicationToUpdate.getId());
-  ////        vnfPackage.setHb_version(applicationToUpdate.getHb_version());
-  //        applicationToUpdate = vnfPackage;
-  //        applicationToUpdate = vnfPackageRepository.save(applicationToUpdate);
-  //        log.info("Updated VNFPackage: " + applicationToUpdate);
-  //        return applicationToUpdate;
+
   //    }
+  //        return applicationToUpdate;
+  //        log.info("Updated VNFPackage: " + applicationToUpdate);
+  //        applicationToUpdate = vnfPackageRepository.save(applicationToUpdate);
+  //        applicationToUpdate = vnfPackage;
+  ////        vnfPackage.setHb_version(applicationToUpdate.getHb_version());
+  //        vnfPackage.setId(applicationToUpdate.getId());
+  //        }
+  //            throw new NotFoundException("Not found VNFPackage with ID: " + id);
+  //        if (applicationToUpdate == null) {
+  //        VNFPackage applicationToUpdate = vnfPackageRepository.findOne(id);
+  //        log.debug("Updating VNFPackage: " + id);
+
 
   /*
    *
@@ -577,6 +587,54 @@ public class VNFPackageManagement {
       log.debug("received: " + result);
     }
     httpPost.releaseConnection();
+  }
+
+  private void deleteOnFitEagle(VNFPackageMetadata vnfPackageMetadata) {
+    RequestConfig config = RequestConfig.custom().setConnectionRequestTimeout(10000).setConnectTimeout(60000).build();
+    CloseableHttpResponse response = null;
+    HttpDelete httpDelete = null;
+    String url = "https://" + fitEagleIp + ":" + fitEaglePort + "/OpenBaton/upload/v2";
+    try {
+      log.debug("Executing DELETE on " + url);
+      httpDelete= new HttpDelete(url);
+      //      httpPost.setHeader(new BasicHeader("Accept", "multipart/form-data"));
+      //      httpPost.setHeader(new BasicHeader("Content-type", "multipart/form-data"));
+      httpDelete.setHeader(new BasicHeader("username", userManagement.getCurrentUser()));
+      httpDelete.setHeader(new BasicHeader("filename", vnfPackageMetadata.getVnfPackageFileName()));
+      httpDelete.setHeader(new BasicHeader("name", vnfPackageMetadata.getName()));
+
+      CloseableHttpClient client = getHttpClientForSsl(config);
+
+      response = client.execute(httpDelete);
+    } catch (ClientProtocolException e) {
+      httpDelete.releaseConnection();
+      e.printStackTrace();
+      log.error("NotAble to upload VNFPackage");
+      return;
+    } catch (IOException e) {
+      httpDelete.releaseConnection();
+      e.printStackTrace();
+      log.error("NotAble to upload VNFPackage");
+      return;
+    }
+
+    // check response status
+    String result = "";
+    if (response != null && response.getEntity() != null) {
+      try {
+        result = EntityUtils.toString(response.getEntity());
+      } catch (IOException e) {
+        e.printStackTrace();
+        httpDelete.releaseConnection();
+        return;
+      }
+    }
+
+    if (response != null && response.getStatusLine().getStatusCode() != HttpURLConnection.HTTP_NO_CONTENT) {
+      log.debug("Uploaded the VNFPackage");
+      log.debug("received: " + result);
+    }
+    httpDelete.releaseConnection();
   }
 
   private CloseableHttpClient getHttpClientForSsl(RequestConfig config) {

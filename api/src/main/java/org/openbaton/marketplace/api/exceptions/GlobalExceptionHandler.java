@@ -24,6 +24,7 @@ package org.openbaton.marketplace.api.exceptions;
 
 import org.openbaton.exceptions.NotFoundException;
 import org.openbaton.marketplace.exceptions.ImageRepositoryNotEnabled;
+import org.openbaton.marketplace.exceptions.PackageIntegrityException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -32,7 +33,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.context.request.WebRequest;
 
 import java.io.IOException;
 import java.util.Date;
@@ -85,4 +88,27 @@ public class GlobalExceptionHandler {
         return responseEntity;
     }
 
+    @ExceptionHandler({PackageIntegrityException.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    protected @ResponseBody
+    ResponseEntity<Object> handleInvalidRequest(
+        Exception e, WebRequest request) {
+        if (log.isDebugEnabled()) {
+            log.error("Exception was thrown -> Return message: " + e.getMessage(), e);
+        } else {
+            log.error("Exception was thrown -> Return message: " + e.getMessage());
+        }
+        ExceptionResource exc = new ExceptionResource("Bad Request", e.getMessage());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        Map body = new HashMap<>();
+        body.put("error", "Upload Error");
+        body.put("exception", e.getClass().toString());
+        body.put("message", e.getMessage());
+        body.put("path", request.getContextPath());
+        body.put("status", HttpStatus.BAD_REQUEST.value());
+        body.put("timestamp", new Date().getTime());
+        ResponseEntity responseEntity = new ResponseEntity(body, headers, HttpStatus.BAD_REQUEST);
+        return responseEntity;
+    }
 }

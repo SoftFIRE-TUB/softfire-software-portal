@@ -33,6 +33,7 @@ import org.openbaton.marketplace.core.VNFPackageManagement;
 import org.openbaton.marketplace.exceptions.ImageRepositoryNotEnabled;
 import org.openbaton.marketplace.exceptions.NotAuthorizedException;
 import org.openbaton.marketplace.exceptions.NumberOfImageExceededException;
+import org.openbaton.marketplace.exceptions.PackageIntegrityException;
 import org.openbaton.marketplace.imagerepo.core.ImageManager;
 import org.openbaton.marketplace.repository.repository.VNFPackageMetadataRepository;
 import org.openbaton.sdk.api.exception.SDKException;
@@ -75,18 +76,19 @@ public class RestVNFPackage {
    */
   @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity uploadPackage(@RequestParam("file") MultipartFile vnfPackage) throws
-                                                                                   IOException,
-                                                                                   SDKException,
-                                                                                   NoSuchAlgorithmException,
-                                                                                   ArchiveException,
-                                                                                   NumberOfImageExceededException,
-                                                                                   SQLException,
-                                                                                   PluginException,
-                                                                                   VimException,
-                                                                                   NotFoundException,
-                                                                                   ImageRepositoryNotEnabled,
-                                                                                   BadRequestException,
-                                                                                   AlreadyExistingException {
+                                                                                      IOException,
+                                                                                      SDKException,
+                                                                                      NoSuchAlgorithmException,
+                                                                                      ArchiveException,
+                                                                                      NumberOfImageExceededException,
+                                                                                      SQLException,
+                                                                                      PluginException,
+                                                                                      VimException,
+                                                                                      NotFoundException,
+                                                                                      ImageRepositoryNotEnabled,
+                                                                                      BadRequestException,
+                                                                                      AlreadyExistingException,
+                                                                                      PackageIntegrityException {
     log.debug("uploading Package....");
 
     if ((vnfPackage != null)) {
@@ -108,7 +110,7 @@ public class RestVNFPackage {
                                                                ArchiveException,
                                                                SDKException,
                                                                NumberOfImageExceededException,
-                                                               AlreadyExistingException {
+                                                               AlreadyExistingException, PackageIntegrityException {
 
     log.debug("onboard....");
     if (!vnfPackage.isEmpty()) {
