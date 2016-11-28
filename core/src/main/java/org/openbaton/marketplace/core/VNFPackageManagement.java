@@ -470,7 +470,7 @@ public class VNFPackageManagement {
       log.debug("Removing image: " + vnfPackageMetadata.getImageMetadata().getId());
       imageManager.forceDeleteImage(vnfPackageMetadata.getImageMetadata().getId());
     }
-    //this.deleteOnFitEagle(vnfPackageMetadata);
+    this.deleteOnFitEagle(vnfPackageMetadata);
     vnfPackageMetadataRepository.delete(id);
     log.info("Deleted VNFPackage: " + id);
   }
@@ -585,6 +585,9 @@ public class VNFPackageManagement {
     if (response != null && response.getStatusLine().getStatusCode() != HttpURLConnection.HTTP_NO_CONTENT) {
       log.debug("Uploaded the VNFPackage");
       log.debug("received: " + result);
+      if (vnfPackageMetadata.getRequirements() == null)
+        vnfPackageMetadata.setRequirements(new HashMap<String, String>());
+      vnfPackageMetadata.getRequirements().put("fiteagle-id",result);
     }
     httpPost.releaseConnection();
   }
@@ -593,7 +596,7 @@ public class VNFPackageManagement {
     RequestConfig config = RequestConfig.custom().setConnectionRequestTimeout(10000).setConnectTimeout(60000).build();
     CloseableHttpResponse response = null;
     HttpDelete httpDelete = null;
-    String url = "https://" + fitEagleIp + ":" + fitEaglePort + "/OpenBaton/upload/v2";
+    String url = "https://" + fitEagleIp + ":" + fitEaglePort + "/OpenBaton/upload/v2/" + vnfPackageMetadata.getRequirements().get("fiteagle-id");
     try {
       log.debug("Executing DELETE on " + url);
       httpDelete= new HttpDelete(url);
@@ -602,6 +605,7 @@ public class VNFPackageManagement {
       httpDelete.setHeader(new BasicHeader("username", userManagement.getCurrentUser()));
       httpDelete.setHeader(new BasicHeader("filename", vnfPackageMetadata.getVnfPackageFileName()));
       httpDelete.setHeader(new BasicHeader("name", vnfPackageMetadata.getName()));
+      httpDelete.setHeader(new BasicHeader("package-id", vnfPackageMetadata.getRequirements().get("fiteagle-id")));
 
       CloseableHttpClient client = getHttpClientForSsl(config);
 
