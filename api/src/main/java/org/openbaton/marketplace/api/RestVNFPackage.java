@@ -118,7 +118,6 @@ public class RestVNFPackage {
       String fileName = vnfPackage.getOriginalFilename();
 
       VNFPackageMetadata vnfPackageMetadata = vnfPackageManagement.add(fileName, bytes, false);
-      vnfPackageManagement.dispatch(vnfPackageMetadata);
       return vnfPackageMetadata;
     } else {
       throw new IOException("File is an empty file!");

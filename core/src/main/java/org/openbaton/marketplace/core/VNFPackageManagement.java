@@ -136,7 +136,8 @@ public class VNFPackageManagement {
                                                                                  SQLException,
                                                                                  PluginException,
                                                                                  AlreadyExistingException,
-                                                                                 PackageIntegrityException {
+                                                                                 PackageIntegrityException,
+                                                                                 SDKException {
     VNFPackage vnfPackage = new VNFPackage();
     vnfPackage.setScripts(new HashSet<Script>());
     Map<String, Object> metadata = null;
@@ -336,7 +337,7 @@ public class VNFPackageManagement {
     vnfPackageMetadata.setRequirements((Map) metadata.get("requirements"));
     vnfPackageMetadata.setShared((boolean) metadata.get("shared"));
     vnfPackageMetadata.setMd5sum(DigestUtils.md5DigestAsHex(pack));
-
+    this.dispatch(vnfPackageMetadata);
     vnfPackageMetadataRepository.save(vnfPackageMetadata);
 
     //        vnfdRepository.save(virtualNetworkFunctionDescriptor);
