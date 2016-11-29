@@ -23,6 +23,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 import org.apache.commons.compress.archivers.ArchiveException;
 import org.apache.commons.compress.archivers.ArchiveInputStream;
@@ -59,6 +60,8 @@ import org.openbaton.catalogue.mano.descriptor.VirtualNetworkFunctionDescriptor;
 import org.openbaton.catalogue.nfvo.NFVImage;
 import org.openbaton.catalogue.nfvo.Script;
 import org.openbaton.catalogue.nfvo.VNFPackage;
+import org.openbaton.catalogue.nfvo.VimInstance;
+import org.openbaton.catalogue.security.Project;
 import org.openbaton.exceptions.AlreadyExistingException;
 import org.openbaton.exceptions.NotFoundException;
 import org.openbaton.exceptions.PluginException;
@@ -73,6 +76,8 @@ import org.openbaton.marketplace.repository.repository.VNFPackageRepository;
 import org.openbaton.nfvo.security.interfaces.UserManagement;
 import org.openbaton.sdk.NFVORequestor;
 import org.openbaton.sdk.api.exception.SDKException;
+import org.openbaton.sdk.api.rest.ProjectAgent;
+import org.openbaton.sdk.api.rest.VimInstanceRestAgent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -84,6 +89,7 @@ import org.springframework.util.DigestUtils;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -94,6 +100,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
@@ -128,6 +135,11 @@ public class VNFPackageManagement {
   @Value("${marketplace.fiteagle.ip:localhost}") private String fitEagleIp;
   @Value("${marketplace.fiteagle.port:8080}") private String fitEaglePort;
   @Autowired private ImageManager imageManager;
+  @Value("${marketplace.openbaton.username:admin}") private String obUsername;
+  @Value("${marketplace.openbaton.password:openbaton}") private String obPassword;
+  @Value("${marketplace.openbaton.nfvo.ip:localhost}") private String obNfvoIp;
+  @Value("${marketplace.openbaton.nfvo.port:8080}") private String obNfvoPort;
+  @Value("${marketplace.openbaton.nfvo.ssl:false}") private boolean obSslEnabled;
 
   public VNFPackageMetadata add(String fileName, byte[] pack, boolean imageLink) throws
                                                                                  IOException,
@@ -136,8 +148,17 @@ public class VNFPackageManagement {
                                                                                  SQLException,
                                                                                  PluginException,
                                                                                  AlreadyExistingException,
-                                                                                 PackageIntegrityException,
-                                                                                 SDKException {
+                                                                                 PackageIntegrityException {
+    try {
+      updateVims();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    } catch (ClassNotFoundException e) {
+      e.printStackTrace();
+    } catch (SDKException e) {
+      e.printStackTrace();
+    }
+    
     VNFPackage vnfPackage = new VNFPackage();
     vnfPackage.setScripts(new HashSet<Script>());
     Map<String, Object> metadata = null;
@@ -179,8 +200,13 @@ public class VNFPackageManagement {
           }
           vnfPackage.setName((String) metadata.get("name"));
 
-          if (vnfPackageMetadataRepository.findByNameAndUsername(vnfPackage.getName(), userManagement.getCurrentUser()).size() != 0)
-            throw new AlreadyExistingException("Package with name " + vnfPackage.getName() + " already exists, please change the name");
+          if (vnfPackageMetadataRepository.findByNameAndUsername(vnfPackage.getName(), userManagement.getCurrentUser())
+                                          .size() != 0) {
+            throw new AlreadyExistingException("Package with name " +
+                                               vnfPackage.getName() +
+                                               " already exists, please " +
+                                               "change the name");
+          }
 
           if (metadata.containsKey("scripts-link")) {
             vnfPackage.setScriptsLink((String) metadata.get("scripts-link"));
@@ -195,8 +221,8 @@ public class VNFPackageManagement {
               }
               if (imageDetails.get(requiredKey) == null) {
                 throw new PackageIntegrityException("Not defined value of key: " +
-                                               requiredKey +
-                                               " of image in Metadata.yaml");
+                                                    requiredKey +
+                                                    " of image in Metadata.yaml");
               }
             }
             imageMetadata.setUsername(userManagement.getCurrentUser());
@@ -229,7 +255,9 @@ public class VNFPackageManagement {
                     new String[]{"name", "diskFormat", "containerFormat", "minCPU", "minDisk", "minRam", "isPublic"};
                 for (String requiredKey : REQUIRED_IMAGE_CONFIG) {
                   if (!imageConfig.containsKey(requiredKey)) {
-                    throw new PackageIntegrityException("Not found key: " + requiredKey + " of image-config in Metadata.yaml");
+                    throw new PackageIntegrityException("Not found key: " +
+                                                        requiredKey +
+                                                        " of image-config in Metadata.yaml");
                   }
                   if (imageConfig.get(requiredKey) == null) {
                     throw new PackageIntegrityException("Not defined value of key: " +
@@ -245,11 +273,13 @@ public class VNFPackageManagement {
                 image.setMinRam((Integer) imageConfig.get("minRam"));
                 image.setIsPublic(Boolean.parseBoolean(Integer.toString((Integer) imageConfig.get("minRam"))));
               } else {
-                throw new PackageIntegrityException("The image-config is not defined. Please define it to upload a new image");
+                throw new PackageIntegrityException(
+                    "The image-config is not defined. Please define it to upload a new image");
               }
             }
           } else {
-            throw new PackageIntegrityException("The image details are not defined. Please define it to use the right image");
+            throw new PackageIntegrityException(
+                "The image details are not defined. Please define it to use the right image");
           }
         } else if (!entry.getName().startsWith("scripts/") && entry.getName().endsWith(".json")) {
           //this must be the vnfd
@@ -259,8 +289,9 @@ public class VNFPackageManagement {
           try {
             virtualNetworkFunctionDescriptor = mapper.fromJson(json, VirtualNetworkFunctionDescriptor.class);
             //remove the images
-            for (VirtualDeploymentUnit vdu : virtualNetworkFunctionDescriptor.getVdu())
+            for (VirtualDeploymentUnit vdu : virtualNetworkFunctionDescriptor.getVdu()) {
               vdu.setVm_image(new HashSet<String>());
+            }
           } catch (Exception e) {
             e.printStackTrace();
           }
@@ -330,21 +361,96 @@ public class VNFPackageManagement {
     vnfPackageMetadata.setVnfPackageFileName(fileName);
     vnfPackageMetadata.setVnfPackageFile(pack);
     String description = (String) metadata.get("description");
-    if (description.length() > 100)
+    if (description.length() > 100) {
       description = description.substring(0, 100);
+    }
     vnfPackageMetadata.setDescription(description);
     vnfPackageMetadata.setProvider((String) metadata.get("provider"));
     vnfPackageMetadata.setRequirements((Map) metadata.get("requirements"));
     vnfPackageMetadata.setShared((boolean) metadata.get("shared"));
     vnfPackageMetadata.setMd5sum(DigestUtils.md5DigestAsHex(pack));
-    this.dispatch(vnfPackageMetadata);
+    try {
+      this.dispatch(vnfPackageMetadata);
+    } catch (SDKException e) {
+      e.printStackTrace();
+    }
     vnfPackageMetadataRepository.save(vnfPackageMetadata);
 
     //        vnfdRepository.save(virtualNetworkFunctionDescriptor);
     log.debug("Persisted " + vnfPackageMetadata);
     //        log.trace("Onboarded VNFPackage (" + virtualNetworkFunctionDescriptor.getVnfPackageLocation() + ")
     // successfully");
+
+
     return vnfPackageMetadata;
+  }
+
+  private void updateVims() throws IOException, InterruptedException, ClassNotFoundException, SDKException {
+
+    NFVORequestor requestor = new NFVORequestor(obUsername, obPassword, "", obSslEnabled, obNfvoIp, obNfvoPort, "1");
+
+    String
+        cmd =
+        "curl -u openbatonOSClient:secret -X POST http://" +
+        obNfvoIp +
+        ":" +
+        obNfvoPort +
+        "/oauth/token -H \"Accept:application/json\" -d username=" +
+        obUsername +
+        "&password=" +
+        obPassword +
+        "&grant_type=password";
+
+    log.debug("Executing command: " + cmd);
+
+    Process
+        process =
+        Runtime.getRuntime()
+               .exec(cmd);
+    int res = process.waitFor();
+    BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
+
+    BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+
+    String s;
+    String output = "";
+    String imageId = null;
+    if (res != 0) {
+      log.warn("Probably the upload of the image went wrong!");
+      while ((s = stdError.readLine()) != null) {
+        log.warn(s);
+      }
+    } else {
+      while ((s = stdInput.readLine()) != null) {
+
+        output += s;
+      }
+    }
+
+    log.debug("Result is: " + output);
+
+    String token = new GsonBuilder().create().fromJson(output, JsonObject.class).get("value").getAsString();
+
+    ProjectAgent projectAgent = requestor.getProjectAgent();
+    for (Project project : projectAgent.findAll()) {
+      requestor.setProjectId(project.getId());
+      VimInstanceRestAgent vimInstanceRestAgent = requestor.getVimInstanceAgent();
+      vimInstanceRestAgent.setProjectId(project.getId());
+      for (VimInstance vimInstance : vimInstanceRestAgent.findAll()) {
+        String vimId = vimInstance.getId();
+        log.debug("Found Vim Id: " + vimId);
+        Runtime.getRuntime()
+               .exec("curl POST -H \"Content-type: application/json\" -H \"Authorization: Bearer " +
+                     token +
+                     "\" http://" +
+                     obNfvoIp +
+                     ":" +
+                     obNfvoPort +
+                     "/api/v1/datacenters/" +
+                     vimId +
+                     "/refresh");
+      }
+    }
   }
 
   public ByteArrayOutputStream download(String id) throws IOException {
@@ -471,7 +577,11 @@ public class VNFPackageManagement {
       log.debug("Removing image: " + vnfPackageMetadata.getImageMetadata().getId());
       imageManager.forceDeleteImage(vnfPackageMetadata.getImageMetadata().getId());
     }
-    this.deleteOnFitEagle(vnfPackageMetadata);
+    try {
+      this.deleteOnFitEagle(vnfPackageMetadata);
+    } catch (Exception e) {
+      log.error("Exception deleting on fiteagle");
+    }
     vnfPackageMetadataRepository.delete(id);
     log.info("Deleted VNFPackage: " + id);
   }
@@ -517,7 +627,6 @@ public class VNFPackageManagement {
   //        if (applicationToUpdate == null) {
   //        VNFPackage applicationToUpdate = vnfPackageRepository.findOne(id);
   //        log.debug("Updating VNFPackage: " + id);
-
 
   /*
    *
@@ -586,9 +695,10 @@ public class VNFPackageManagement {
     if (response != null && response.getStatusLine().getStatusCode() != HttpURLConnection.HTTP_NO_CONTENT) {
       log.debug("Uploaded the VNFPackage");
       log.debug("received: " + result);
-      if (vnfPackageMetadata.getRequirements() == null)
+      if (vnfPackageMetadata.getRequirements() == null) {
         vnfPackageMetadata.setRequirements(new HashMap<String, String>());
-      vnfPackageMetadata.getRequirements().put("fiteagle-id",result);
+      }
+      vnfPackageMetadata.getRequirements().put("fiteagle-id", result);
     }
     httpPost.releaseConnection();
   }
@@ -597,10 +707,17 @@ public class VNFPackageManagement {
     RequestConfig config = RequestConfig.custom().setConnectionRequestTimeout(10000).setConnectTimeout(60000).build();
     CloseableHttpResponse response = null;
     HttpDelete httpDelete = null;
-    String url = "https://" + fitEagleIp + ":" + fitEaglePort + "/OpenBaton/upload/v2/" + vnfPackageMetadata.getRequirements().get("fiteagle-id");
+    String
+        url =
+        "https://" +
+        fitEagleIp +
+        ":" +
+        fitEaglePort +
+        "/OpenBaton/upload/v2/" +
+        vnfPackageMetadata.getRequirements().get("fiteagle-id");
     try {
       log.debug("Executing DELETE on " + url);
-      httpDelete= new HttpDelete(url);
+      httpDelete = new HttpDelete(url);
       //      httpPost.setHeader(new BasicHeader("Accept", "multipart/form-data"));
       //      httpPost.setHeader(new BasicHeader("Content-type", "multipart/form-data"));
       httpDelete.setHeader(new BasicHeader("username", userManagement.getCurrentUser()));
@@ -614,12 +731,12 @@ public class VNFPackageManagement {
     } catch (ClientProtocolException e) {
       httpDelete.releaseConnection();
       e.printStackTrace();
-      log.error("NotAble to upload VNFPackage");
+      log.error("Not able to delete VNFPackage");
       return;
     } catch (IOException e) {
       httpDelete.releaseConnection();
       e.printStackTrace();
-      log.error("NotAble to upload VNFPackage");
+      log.error("Not able to delete VNFPackage");
       return;
     }
 
@@ -636,7 +753,7 @@ public class VNFPackageManagement {
     }
 
     if (response != null && response.getStatusLine().getStatusCode() != HttpURLConnection.HTTP_NO_CONTENT) {
-      log.debug("Uploaded the VNFPackage");
+      log.debug("Deleted the VNFPackage");
       log.debug("received: " + result);
     }
     httpDelete.releaseConnection();
@@ -739,5 +856,21 @@ public class VNFPackageManagement {
       set.add(iterator.next());
     }
     return set;
+  }
+
+  public static void main(String[] args) {
+    VNFPackageManagement vnfPackageManagement = new VNFPackageManagement();
+
+    try {
+      vnfPackageManagement.updateVims();
+    } catch (IOException e) {
+      e.printStackTrace();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    } catch (ClassNotFoundException e) {
+      e.printStackTrace();
+    } catch (SDKException e) {
+      e.printStackTrace();
+    }
   }
 }
