@@ -371,7 +371,12 @@ public class VNFPackageManagement {
     vnfPackageMetadata.setRequirements((Map) metadata.get("requirements"));
     vnfPackageMetadata.setShared((boolean) metadata.get("shared"));
     vnfPackageMetadata.setMd5sum(DigestUtils.md5DigestAsHex(pack));
-    this.dispatch(vnfPackageMetadata);
+    try {
+      this.dispatch(vnfPackageMetadata);
+    } catch (FailedToUploadException e) {
+      vnfPackageRepository.delete(vnfPackage.getId());
+      throw e;
+    }
     vnfPackageMetadataRepository.save(vnfPackageMetadata);
 
     //        vnfdRepository.save(virtualNetworkFunctionDescriptor);
