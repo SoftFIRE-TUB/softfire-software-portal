@@ -23,6 +23,7 @@
 package org.openbaton.marketplace.api.exceptions;
 
 import org.openbaton.exceptions.NotFoundException;
+import org.openbaton.marketplace.exceptions.FailedToUploadException;
 import org.openbaton.marketplace.exceptions.ImageRepositoryNotEnabled;
 import org.openbaton.marketplace.exceptions.PackageIntegrityException;
 import org.slf4j.Logger;
@@ -109,6 +110,31 @@ public class GlobalExceptionHandler {
         body.put("status", HttpStatus.BAD_REQUEST.value());
         body.put("timestamp", new Date().getTime());
         ResponseEntity responseEntity = new ResponseEntity(body, headers, HttpStatus.BAD_REQUEST);
+        return responseEntity;
+    }
+
+
+    @ExceptionHandler({FailedToUploadException.class})
+    @ResponseStatus(value = HttpStatus.I_AM_A_TEAPOT)
+    protected @ResponseBody
+    ResponseEntity<Object> handleErrorRequest(
+        Exception e, WebRequest request) {
+        if (log.isDebugEnabled()) {
+            log.error("Exception was thrown -> Return message: " + e.getMessage(), e);
+        } else {
+            log.error("Exception was thrown -> Return message: " + e.getMessage());
+        }
+        ExceptionResource exc = new ExceptionResource("Bad Request", e.getMessage());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        Map body = new HashMap<>();
+        body.put("error", "Upload Error");
+        body.put("exception", e.getClass().toString());
+        body.put("message", e.getMessage());
+        body.put("path", request.getContextPath());
+        body.put("status", HttpStatus.I_AM_A_TEAPOT.value());
+        body.put("timestamp", new Date().getTime());
+        ResponseEntity responseEntity = new ResponseEntity(body, headers, HttpStatus.I_AM_A_TEAPOT);
         return responseEntity;
     }
 }

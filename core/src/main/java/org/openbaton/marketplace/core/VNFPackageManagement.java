@@ -68,6 +68,7 @@ import org.openbaton.exceptions.PluginException;
 import org.openbaton.exceptions.VimException;
 import org.openbaton.marketplace.catalogue.ImageMetadata;
 import org.openbaton.marketplace.catalogue.VNFPackageMetadata;
+import org.openbaton.marketplace.exceptions.FailedToUploadException;
 import org.openbaton.marketplace.exceptions.NotAuthorizedException;
 import org.openbaton.marketplace.exceptions.PackageIntegrityException;
 import org.openbaton.marketplace.imagerepo.core.ImageManager;
@@ -148,7 +149,8 @@ public class VNFPackageManagement {
                                                                                  SQLException,
                                                                                  PluginException,
                                                                                  AlreadyExistingException,
-                                                                                 PackageIntegrityException {
+                                                                                 PackageIntegrityException,
+                                                                                 FailedToUploadException {
     try {
       updateVims();
     } catch (InterruptedException e) {
@@ -158,7 +160,7 @@ public class VNFPackageManagement {
     } catch (SDKException e) {
       e.printStackTrace();
     }
-    
+
     VNFPackage vnfPackage = new VNFPackage();
     vnfPackage.setScripts(new HashSet<Script>());
     Map<String, Object> metadata = null;
@@ -369,11 +371,7 @@ public class VNFPackageManagement {
     vnfPackageMetadata.setRequirements((Map) metadata.get("requirements"));
     vnfPackageMetadata.setShared((boolean) metadata.get("shared"));
     vnfPackageMetadata.setMd5sum(DigestUtils.md5DigestAsHex(pack));
-    try {
-      this.dispatch(vnfPackageMetadata);
-    } catch (SDKException e) {
-      e.printStackTrace();
-    }
+    this.dispatch(vnfPackageMetadata);
     vnfPackageMetadataRepository.save(vnfPackageMetadata);
 
     //        vnfdRepository.save(virtualNetworkFunctionDescriptor);
@@ -646,7 +644,7 @@ public class VNFPackageManagement {
    *  ]
    *
   */
-  public void dispatch(VNFPackageMetadata vnfPackageMetadata) throws SDKException {
+  public void dispatch(VNFPackageMetadata vnfPackageMetadata) throws FailedToUploadException {
 
     RequestConfig config = RequestConfig.custom().setConnectionRequestTimeout(10000).setConnectTimeout(60000).build();
     CloseableHttpResponse response = null;
@@ -671,13 +669,13 @@ public class VNFPackageManagement {
       httpPost.releaseConnection();
       e.printStackTrace();
       log.error("NotAble to upload VNFPackage");
-      return;
+      throw new FailedToUploadException("Not Able to upload VNFPackage to Fiteagle because: " + e.getMessage());
     } catch (IOException e) {
       httpPost.releaseConnection();
       e.printStackTrace();
       httpPost.releaseConnection();
       log.error("NotAble to upload VNFPackage");
-      return;
+      throw new FailedToUploadException("Not Able to upload VNFPackage to Fiteagle because: " + e.getMessage());
     }
 
     // check response status
@@ -688,18 +686,18 @@ public class VNFPackageManagement {
       } catch (IOException e) {
         e.printStackTrace();
         httpPost.releaseConnection();
-        return;
+        throw new FailedToUploadException("Not Able to upload VNFPackage to Fiteagle because: " + e.getMessage());
       }
     }
 
-    if (response != null && response.getStatusLine().getStatusCode() != HttpURLConnection.HTTP_NO_CONTENT) {
+    if (response != null && response.getStatusLine().getStatusCode() == HttpURLConnection.HTTP_OK) {
       log.debug("Uploaded the VNFPackage");
       log.debug("received: " + result);
       if (vnfPackageMetadata.getRequirements() == null) {
         vnfPackageMetadata.setRequirements(new HashMap<String, String>());
       }
       vnfPackageMetadata.getRequirements().put("fiteagle-id", result);
-    }
+    } else throw new FailedToUploadException("Not Able to upload VNFPackage to Fiteagle because: Fiteagle answered " + response.getStatusLine().getStatusCode());
     httpPost.releaseConnection();
   }
 

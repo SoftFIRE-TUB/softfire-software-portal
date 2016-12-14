@@ -30,6 +30,7 @@ import org.openbaton.exceptions.PluginException;
 import org.openbaton.exceptions.VimException;
 import org.openbaton.marketplace.catalogue.VNFPackageMetadata;
 import org.openbaton.marketplace.core.VNFPackageManagement;
+import org.openbaton.marketplace.exceptions.FailedToUploadException;
 import org.openbaton.marketplace.exceptions.ImageRepositoryNotEnabled;
 import org.openbaton.marketplace.exceptions.NotAuthorizedException;
 import org.openbaton.marketplace.exceptions.NumberOfImageExceededException;
@@ -88,7 +89,8 @@ public class RestVNFPackage {
                                                                                       ImageRepositoryNotEnabled,
                                                                                       BadRequestException,
                                                                                       AlreadyExistingException,
-                                                                                      PackageIntegrityException {
+                                                                                      PackageIntegrityException,
+                                                                                      FailedToUploadException {
     log.debug("uploading Package....");
 
     if ((vnfPackage != null)) {
@@ -110,7 +112,9 @@ public class RestVNFPackage {
                                                                ArchiveException,
                                                                SDKException,
                                                                NumberOfImageExceededException,
-                                                               AlreadyExistingException, PackageIntegrityException {
+                                                               AlreadyExistingException,
+                                                               PackageIntegrityException,
+                                                               FailedToUploadException {
 
     log.debug("onboard....");
     if (!vnfPackage.isEmpty()) {
