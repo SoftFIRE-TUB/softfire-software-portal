@@ -19,9 +19,9 @@
 
 repositories {
     mavenCentral()
-    maven {
-        url "http://get.openbaton.org:8081/nexus/content/groups/public"
-    }
+//    maven {
+//        url "http://get.openbaton.org:8081/nexus/content/groups/public"
+//    }
 }
 
 apply plugin: 'jacoco'
@@ -31,8 +31,8 @@ dependencies {
     compile project(':security')
     compile project(':image-repo')
 
-    compile group: 'org.openbaton', name: 'catalogue', version: openbatonVersion
-    compile group: 'org.openbaton', name: 'exception', version: openbatonVersion
+//    compile group: 'org.openbaton', name: 'catalogue', version: openbatonVersion
+//    compile group: 'org.openbaton', name: 'exception', version: openbatonVersion
     compile group: 'org.openbaton', name: 'sdk', version: openbatonVersion
 
     compile group: 'org.apache.commons', name:'commons-compress', version: '1.9'
