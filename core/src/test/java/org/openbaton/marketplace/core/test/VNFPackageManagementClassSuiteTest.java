@@ -43,6 +43,8 @@ import org.openbaton.exceptions.VimException;
 import org.openbaton.marketplace.catalogue.ImageMetadata;
 import org.openbaton.marketplace.catalogue.VNFPackageMetadata;
 import org.openbaton.marketplace.core.VNFPackageManagement;
+import org.openbaton.marketplace.exceptions.FailedToUploadException;
+import org.openbaton.marketplace.exceptions.PackageIntegrityException;
 import org.openbaton.marketplace.repository.repository.VNFPackageMetadataRepository;
 import org.openbaton.marketplace.repository.repository.VNFPackageRepository;
 import org.slf4j.Logger;
@@ -99,7 +101,9 @@ public class VNFPackageManagementClassSuiteTest {
                                              VimException,
                                              NotFoundException,
                                              PluginException,
-                                             AlreadyExistingException {
+                                             AlreadyExistingException,
+                                             FailedToUploadException,
+                                             PackageIntegrityException {
     VNFPackageMetadata expectedVnfPackageMetadata = getVnfPackageMetadata();
     when(vnfPackageRepository.save(any(VNFPackage.class))).thenReturn(expectedVnfPackageMetadata.getVnfPackage());
     VNFPackageMetadata

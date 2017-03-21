@@ -44,7 +44,7 @@ project.ext {
      * Application Related Version
      */
 
-    openbatonVersion = '2.1.2-SNAPSHOT'
+    openbatonVersion = '3.2.1'
 
     applicationVersion = version
     applicationVersionDebian = "1";
